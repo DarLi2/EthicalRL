@@ -1,0 +1,4 @@
+{
+    "selected_agent": "q-learning_agent",
+    "env": "bridge-v0"
+  }
