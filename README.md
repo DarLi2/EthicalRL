@@ -1,7 +1,7 @@
 EthicalRL
 ==============================
 
-Creating mo moral agents
+Building moral agents
 
 Project Organization
 ------------
