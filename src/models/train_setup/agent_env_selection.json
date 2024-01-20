@@ -1,4 +1,4 @@
 {
-    "selected_agent": "q-learning_agent",
-    "env": "bridge-v0"
+    "selected_agent": "q_learning_agent_drowning_people",
+    "env": "bridge_world_drowning_people-v0"
   }

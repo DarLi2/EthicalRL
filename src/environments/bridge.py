@@ -246,7 +246,7 @@ class Bridge(gym.Env):
 
 gym.register(
     id='bridge-v0',
-    entry_point="bridge:Bridge",  # Replace with your actual module and class name
+    entry_point="src.environments.bridge:Bridge",  # Replace with your actual module and class name
     max_episode_steps=300,
     kwargs={'render_mode': None}
 )
