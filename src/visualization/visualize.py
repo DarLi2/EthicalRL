@@ -1,6 +1,6 @@
 from src.environments import bridge
 from src.environments import bridge_world_drowningPeople
-from src.algorithms import q_learning
+from src.algorithms import q_learning_agent_table
 import numpy as np
 import gymnasium as gym
 import json

@@ -1,10 +1,6 @@
-#import algorithms
-#import predict_model
-
 from src.environments import bridge
 from src.environments import bridge_world_drowningPeople
-from src.algorithms import q_learning
-from src.algorithms import q_learning_agent_drowning
+from src.algorithms import q_learning_agent_table
 
 import gymnasium as gym
 from gymnasium import envs
@@ -30,7 +26,7 @@ env = gym.make(env, render_mode=None)
 # set up agent with chosen hyperparamters (can be changed in the json file)
 selected_agent = selection.get("selected_agent")
 
-if selected_agent == "q-learning_agent":
+if selected_agent == "q_learning_agent_table":
     file_path = os.path.join(current_directory, "src/models/train_setup/hyperparameters/q_learning.json")
     with open(file_path, "r") as read_file:
         hyperparameters = json.load(read_file)
@@ -39,24 +35,7 @@ if selected_agent == "q-learning_agent":
     start_epsilon = hyperparameters.get("start_epsilon", 1.0)
     epsilon_decay = hyperparameters.get("epsilon_decay", start_epsilon / (n_episodes / 2))
     final_epsilon = hyperparameters.get("final_epsilon", 0.1)
-    agent = q_learning.QLearningAgent(
-    env = env,
-    q_values=None,
-    learning_rate=learning_rate,
-    initial_epsilon=start_epsilon,
-    epsilon_decay=epsilon_decay,
-    final_epsilon=final_epsilon
-    )
-if selected_agent == 'q_learning_agent_drowning_people':
-    file_path = os.path.join(current_directory, "src/models/train_setup/hyperparameters/q_learning.json")
-    with open(file_path, "r") as read_file:
-        hyperparameters = json.load(read_file)
-    n_episodes = hyperparameters.get("n_episodes", 100000)
-    learning_rate = hyperparameters.get("learning_rate", 0.01)
-    start_epsilon = hyperparameters.get("start_epsilon", 1.0)
-    epsilon_decay = hyperparameters.get("epsilon_decay", start_epsilon / (n_episodes / 2))
-    final_epsilon = hyperparameters.get("final_epsilon", 0.1)
-    agent = q_learning_agent_drowning.QLearningAgent(
+    agent = q_learning_agent_table.QLearningAgent(
     env = env,
     q_values=None,
     learning_rate=learning_rate,
@@ -66,8 +45,7 @@ if selected_agent == 'q_learning_agent_drowning_people':
     )
 
 def train():
-    print(n_episodes)
-    if selected_agent == "q_learning_agent_drowning_people":
+    if selected_agent == "q_learning_agent_table":
         for episode in tqdm(range(n_episodes)):
             state, info = env.reset()
             done = False
@@ -84,8 +62,6 @@ def train():
                 state = next_state
 
             agent.decay_epsilon()
-        print(agent.q_values)
-        print(type(agent.q_values))
 
 def save(agent_name: str):
     # Get the current working directory
@@ -107,5 +83,5 @@ def save(agent_name: str):
     with open(agents_file_path, 'wb') as file:
         pickle.dump(agents, file)
 
-train()
+#train()
 save("q_learning_agent")
