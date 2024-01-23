@@ -104,6 +104,7 @@ def save(agent_name: str):
         agents = {}
 
     agents[agent_name] = agent
+    #TODO: checken, ob existierender agent überschrieben werden würde
     with open(agents_file_path, 'wb') as file:
         pickle.dump(agents, file)
 
