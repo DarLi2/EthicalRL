@@ -44,18 +44,34 @@ class QLearningAgent:
     def default_q_values(self):
         return np.zeros(self.env.action_space.n)
 
-    def convert_observations(self, observations):
-        obs_list= []
-        for ob in observations:
-            for element in ob:
-                obs_list.append(element)
-        tuple_obs = tuple(obs_list)
+    # def convert_observations(self, observations):
+    #     obs_list= []
+    #     for ob in observations:
+    #         for element in ob:
+    #             obs_list.append(element)
+    #     tuple_obs = tuple(obs_list)
 
+    #     return tuple_obs
+
+    def convert_observations(self, observations):
+        obs_list = []
+
+        # Convert "agent" and "target" to tuples
+        for key in ["agent", "target"]:
+            for element in observations[key]:
+                obs_list.append(element)
+
+        # Convert "drowning_people" to tuples
+        if "drowning_people" in observations:
+            for drowning_person in observations["drowning_people"]:
+                obs_list.extend(drowning_person.tolist())  # Convert the NumPy array to a list
+
+        tuple_obs = tuple(obs_list)
         return tuple_obs
 
 
     def get_action(self, obs) -> int:
-        obs = self.convert_observations(obs.values())
+        obs = self.convert_observations(obs)
         """
         Returns the best action with probability (1 - epsilon)
         otherwise a random action with probability epsilon to ensure exploration.
@@ -91,8 +107,9 @@ class QLearningAgent:
         # tuple_next_obs = tuple(obs_list)
 
         """Updates the Q-value of an action."""
-        obs = self.convert_observations(obs.values())
-        next_obs = self.convert_observations(next_obs.values())
+        obs = self.convert_observations(obs)
+        next_obs = self.convert_observations(next_obs)
+
         future_q_value = (not terminated) * np.max(self.q_values[next_obs])
         temporal_difference = (
             reward + self.discount_factor * future_q_value - self.q_values[obs][action]
