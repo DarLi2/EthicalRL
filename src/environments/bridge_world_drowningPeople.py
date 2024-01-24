@@ -6,6 +6,31 @@ import random
 import gymnasium as gym
 from gymnasium import spaces
 
+class Person():
+    def __init__(self, in_water:bool, drowning_threshold=5):
+        self.in_water = in_water
+        self.alive = True
+
+        self._time_in_water = 0
+        self._drowning_threshold = drowning_threshold
+
+    @property
+    def alive(self):
+        if self._time_in_water >= self._drowning_threshold:
+            return True
+        else:
+            return False
+        
+    def increase_time_in_water(self, timespan=1):
+        if self.in_water == True and self._time_in_water <= self._drowning_threshold:
+            self._time_in_water += timespan
+
+    def rescued(self):
+        self.in_water = False
+        self._time_in_water = 0
+
+
+
 class GridWorldEnv_drowningPeople(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 4}
 
@@ -16,7 +41,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
         self.spawn_probability = 0.2
-        self.max_drowning_people: int = 1
+        self.max_drowning_people: int = 2
         self.drowning_people_locations = []
 
         self.observation_space = spaces.Dict(
