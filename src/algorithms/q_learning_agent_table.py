@@ -44,15 +44,6 @@ class QLearningAgent:
     def default_q_values(self):
         return np.zeros(self.env.action_space.n)
 
-    # def convert_observations(self, observations):
-    #     obs_list= []
-    #     for ob in observations:
-    #         for element in ob:
-    #             obs_list.append(element)
-    #     tuple_obs = tuple(obs_list)
-
-    #     return tuple_obs
-
 #TODO: put function in extra module such that it can be called by other agents architectures
     def convert_observations(self, observations):
         obs_list = []
@@ -66,10 +57,6 @@ class QLearningAgent:
         for element in person["position"]:
             obs_list.append(element)
         obs_list.append(int(person["in_water"]))
-        # Convert "drowning_people" to tuples
-        #if "drowning_people" in observations:
-        #    for drowning_person in observations["drowning_people"]:
-        #        obs_list.append(drowning_person)  # Convert the NumPy array to a list
 
         tuple_obs = tuple(obs_list)
         return tuple_obs
@@ -97,19 +84,6 @@ class QLearningAgent:
         terminated: bool,
         next_obs
     ):
-        # obs = obs.values()
-        # obs_list= []
-        # for ob in obs:
-        #     for element in ob:
-        #         obs_list.append(element)
-        # tuple_obs = tuple(obs_list)
-
-        # obs = next_obs.values()
-        # obs_list= []
-        # for ob in obs:
-        #     for element in ob:
-        #         obs_list.append(element)
-        # tuple_next_obs = tuple(obs_list)
 
         """Updates the Q-value of an action."""
         obs = self.convert_observations(obs)

@@ -33,7 +33,7 @@ def visualize(agent_name):
         while True:
                 state, info = env.reset()
                 done = False
-                # play one episode
+                # run one episode
                 while not done:
                         action = agent.get_action(state)
                         next_state, reward, terminated, truncated, info = env.step(action)
@@ -49,15 +49,6 @@ visualize("q_learning_agent")
     
 # env = data.get("env", "bridge_world-v0")
 
-# def instantiate_agent(agent_type, config):
-#     if agent_type == "DQNAgent":
-#         from q_learning import q_learning_agent
-#         return (config["other_config_option"])
-#     elif agent_type == "AnotherAgent":
-#         pass
-#     # Add more elif blocks for other agent types as needed
-#     else:
-#         raise ValueError(f"Unknown agent type: {agent_type}")
 
 #TODO: funktion schreiben, die beiliebigen agent übergeben bekommt (typ: gym.agent oder so nimmt) und dessen verhalten dann visualisiert
 #TODO: main funktion(?) schreiben, die aus konsole argument nimmt, welcher agent übergeben werden soll

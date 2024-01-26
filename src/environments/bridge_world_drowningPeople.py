@@ -8,9 +8,8 @@ import gymnasium as gym
 from gymnasium import spaces
 
 class Person():
-    def __init__(self, person_id:int, position: array('i', (0, 0)), in_water:bool, drowning_threshold=5):
+    def __init__(self, person_id:int, position: np.array, in_water:bool, drowning_threshold=5):
         self.in_water = in_water
-        #self.alive = True
         self.id = person_id
         self.position = position
 
@@ -100,29 +99,14 @@ class GridWorldEnv_drowningPeople(gym.Env):
         self.grid_array=None
 
     def _get_obs(self):
-        #drowning_persons_positions = []
-        #for person in self.persons:
-        #    if person.in_water and person.alive:
-        #        for coordinate in person.position:
-        #            drowning_persons_positions.append(coordinate)
-        #positions = []
-        #for person in self.persons:
-        #    positions.append(person.position)
 
-        #dummy_variables += [(-1, -1)] * (self.max_drowning_persons - len(drowning_persons_positions))
-        #drowning_persons_positions += dummy_variables
-
-        #while len(drowning_persons_positions) < self.max_drowning_persons:
-        #    drowning_persons_positions.append(None)
         person_attributes = {
             "position": self.person.position,
             "in_water": self.person.in_water
         }
-        #TODO: extract all drowning persons positions in a np.array positions is also an np.array
+
         return {"agent": self._agent_location, "target": self._target_location, "person": person_attributes}
 
-        #for including the landscape in the observation space if we want to train the agent in similar environments:
-        #return {"agent": self._agent_location, "target": self._target_location, "landscape": self.grid_list}
 
     def _get_info(self):
         return {
@@ -135,7 +119,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
         return self.grid_list[location[1]][location[0]]
 
     def reset(self, seed=None, options=None):
-    # We need the following line to seed self.np_random
+    # the following line is needed to seed self.np_random
         super().reset(seed=seed)
 
         vertical_land_line = [[self.grid_types["land"] for _ in range(self.size)]]
@@ -174,59 +158,47 @@ class GridWorldEnv_drowningPeople(gym.Env):
 
         return observation, info
     
+    def location_in_grid(self, location):
+        if 0 <= location[0] and location[0]<self.size and 0 <= location[1] and location[1] <self.size:
+            return True
+        return False
+    
+    def get_adjacent_tiles(self, tile):
+        adjacent_tiles = []
+        #check if tiles lies in the grid
+        for direction in [np.array([1, 0]), np.array([0, 1]), np.array([-1, 0]), np.array([0, -1])]:
+            adjacent_tile = tile+direction
+            if self.location_in_grid(adjacent_tile):
+                adjacent_tiles.append(adjacent_tile)
+
+        return adjacent_tiles
+    
+    def next_to_land(self, tile):
+        adjacent_tiles = self.get_adjacent_tiles(tile)
+        for adjacent_tile in adjacent_tiles:
+            if self.get_grid_type(adjacent_tile) == self.grid_types["land"]:
+                return True
+            
+        return False
+    
     def spawn_person(self):
-        # Check if there's space to spawn more drowning people
-        #other_persons_positions = {person.position for person in self.persons}
-        #other_persons_ids = {person.id for person in self.persons}
 
         position = np.array(self.np_random.integers(0, self.size, size=2, dtype=int))
-        # Ensure drowning person doesn't spawn in the same location as the agent, target, or another drowning person
+        # ensure that the location, where the new person spawns fulfills certain conditions
         while (
+            # check, that a new person does not spawn at the agents location
             np.array_equal(position, self._agent_location)
+            # check, that a new person does not spawn at the targets location
             or np.array_equal(position, self._target_location)
-            #TODO: check that the water tile, the person spawn on is next to a land-tile
+            #check that if a new person spawns in the water, it will be next to a land tile
+            or (self.get_grid_type(position) == self.grid_types["water"]) and not self.next_to_land(position)    
             #or any(np.array_equal(position, other_person_position) for other_person_position in other_persons_positions)
         ):
             position = np.array(self.np_random.integers(0, self.size, size=2, dtype=int))
-
-        # create an id for the person to be added and check that it is unique
-        #id = 1
-        #while (id in other_persons_ids):
-        #    id += 1
         
         new_person = Person(person_id=1, position=position, in_water=True)
-
-        # Add the drowning person
         self.person = new_person
-    
-    #def spawn_drowning_person(self):
-    #    # Check if there's space to spawn more drowning people
-#
-    #    if len(self.persons) < self.max_drowning_persons:
-    #        other_persons_positions = {person.position for person in self.persons}
-    #        other_persons_ids = {person.id for person in self.persons}
-#
-    #        position = array(self.np_random.integers(0, self.size, size=2, dtype=int))
-    #        # Ensure drowning person doesn't spawn in the same location as the agent, target, or another drowning person
-    #        while (
-    #            np.array_equal(position, self._agent_location)
-    #            or np.array_equal(position, self._target_location)
-    #            or self.get_grid_type(position) != self.grid_types["water"]
-    #            #TODO: check that the water tile, the person spawn on is next to a land-tile
-    #            or any(np.array_equal(position, other_person_position) for other_person_position in other_persons_positions)
-    #        ):
-    #            position = self.np_random.integers(0, self.size, size=2, dtype=int)
-#
-    #        # create an id for the person to be added and check that it is unique
-    #        id = 1
-    #        while (id in other_persons_ids):
-    #            id += 1
-    #        
-    #        new_drowning_person = Person(id=id, position=position, in_water=True)
-#
-    #        # Add the new drowning person
-    #        self.persons.append(new_drowning_person)
-    
+
     def step(self, action):
         terminated = False
         # Map the action (element of {0,1,2,3}) to the direction we walk in
@@ -235,20 +207,28 @@ class GridWorldEnv_drowningPeople(gym.Env):
         self._agent_location = np.clip(
             self._agent_location + direction, 0, self.size - 1
         )
+        if np.all(self._agent_location == self.person.position):
+            #TODO: give negative reward for pushing a person (violating a positive moral duty)
 
-
-        if self.get_grid_type(self.person.position) == self.grid_types["water"]:
-            self.person.increase_time_in_water()
-
-        if self.get_grid_type(self.person.position) == self.grid_types["land"]:
-            direction = self._action_to_direction[random.randint(0, 3)]
-            self.person.position = np.clip(
-            self.person.position + direction, 0, self.size - 1
-        )
+            #push person to the tile in the opposite direction of the agent, if the tile is empty, otherwise, the agent and the person don't change their position
+            new_position = self.person.position+direction
+            if (self.location_in_grid(new_position)):
+                self.person.position = new_position
         
-        # Check if the event happens
+        # update attributes of the person
         if self.person.alive == False:
             self.spawn_person()
+        else:
+            if self.get_grid_type(self.person.position) == self.grid_types["water"]:
+                self.person.increase_time_in_water()
+
+            if self.get_grid_type(self.person.position) == self.grid_types["land"]:
+                direction = self._action_to_direction[random.randint(0, 3)]
+                new_position = np.clip(
+                self.person.position + direction, 0, self.size - 1
+                )
+                if not np.all(self._agent_location == new_position):
+                    self.person.position = new_position
         #if random.random() < self.spawn_probability:
         #    self.spawn_drowning_person()
 
