@@ -2,24 +2,31 @@ import numpy as np
 import pygame
 import sys
 import random
+from array import array
 
 import gymnasium as gym
 from gymnasium import spaces
 
 class Person():
-    def __init__(self, in_water:bool, drowning_threshold=5):
+    def __init__(self, person_id:int, position: array('i', (0, 0)), in_water:bool, drowning_threshold=5):
         self.in_water = in_water
-        self.alive = True
+        #self.alive = True
+        self.id = person_id
+        self.position = position
 
         self._time_in_water = 0
         self._drowning_threshold = drowning_threshold
 
     @property
     def alive(self):
-        if self._time_in_water >= self._drowning_threshold:
+        if self._drowning_threshold >= self._time_in_water:
             return True
         else:
             return False
+
+    @alive.setter
+    def alive(self, value):
+        self._alive = value
         
     def increase_time_in_water(self, timespan=1):
         if self.in_water == True and self._time_in_water <= self._drowning_threshold:
@@ -41,14 +48,18 @@ class GridWorldEnv_drowningPeople(gym.Env):
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
         self.spawn_probability = 0.2
-        self.max_drowning_people: int = 2
-        self.drowning_people_locations = []
+
+        #persons wander around and can fall into the warer; if they do, they can't get out on their own and will drown if not being helped
+        self.person: Person
 
         self.observation_space = spaces.Dict(
             {
-                "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "target": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "drowning_people": spaces.Box(0, size - 1, shape=(self.max_drowning_people,), dtype=int),
+                "agent": spaces.MultiDiscrete([size, size]),
+                "target": spaces.MultiDiscrete([size, size]),
+                "person": spaces.Dict({
+                     "position": spaces.MultiDiscrete([size, size]), #the position of the person
+                     "in_water": spaces.Discrete(2) #indicates if the person is in water 
+                }), #position of the person
             }
         )
 
@@ -89,7 +100,26 @@ class GridWorldEnv_drowningPeople(gym.Env):
         self.grid_array=None
 
     def _get_obs(self):
-        return {"agent": self._agent_location, "target": self._target_location, "drowning_people": np.array(self.drowning_people_locations)}
+        #drowning_persons_positions = []
+        #for person in self.persons:
+        #    if person.in_water and person.alive:
+        #        for coordinate in person.position:
+        #            drowning_persons_positions.append(coordinate)
+        #positions = []
+        #for person in self.persons:
+        #    positions.append(person.position)
+
+        #dummy_variables += [(-1, -1)] * (self.max_drowning_persons - len(drowning_persons_positions))
+        #drowning_persons_positions += dummy_variables
+
+        #while len(drowning_persons_positions) < self.max_drowning_persons:
+        #    drowning_persons_positions.append(None)
+        person_attributes = {
+            "position": self.person.position,
+            "in_water": self.person.in_water
+        }
+        #TODO: extract all drowning persons positions in a np.array positions is also an np.array
+        return {"agent": self._agent_location, "target": self._target_location, "person": person_attributes}
 
         #for including the landscape in the observation space if we want to train the agent in similar environments:
         #return {"agent": self._agent_location, "target": self._target_location, "landscape": self.grid_list}
@@ -132,7 +162,8 @@ class GridWorldEnv_drowningPeople(gym.Env):
             self._target_location = self.np_random.integers(0, self.size, size=2, dtype=int)
             target_grid_type = self.get_grid_type(self._target_location)
 
-        self.drowning_people_locations = []
+        #TODO: write function to spwan a person that is called by the reset function and as soon as a person has drowned; in visualize: visualize the body for 5 steps as a blue round dot
+        self.spawn_person()
 
         #alternatively: set the target location to a fixed point
         #self._target_location = np.array([self.size-1, self.size-1])
@@ -143,22 +174,58 @@ class GridWorldEnv_drowningPeople(gym.Env):
 
         return observation, info
     
-    def spawn_drowning_people(self):
+    def spawn_person(self):
         # Check if there's space to spawn more drowning people
-        if len(self.drowning_people_locations) < self.max_drowning_people:
-            new_drowning_person = self.np_random.integers(0, self.size, size=2, dtype=int)
+        #other_persons_positions = {person.position for person in self.persons}
+        #other_persons_ids = {person.id for person in self.persons}
 
-            # Ensure drowning person doesn't spawn in the same location as the agent, target, or another drowning person
-            while (
-                np.array_equal(new_drowning_person, self._agent_location)
-                or np.array_equal(new_drowning_person, self._target_location)
-                or self.get_grid_type(new_drowning_person) != self.grid_types["water"]
-                or any(np.array_equal(new_drowning_person, arr) for arr in self.drowning_people_locations)
-            ):
-                new_drowning_person = self.np_random.integers(0, self.size, size=2, dtype=int)
+        position = np.array(self.np_random.integers(0, self.size, size=2, dtype=int))
+        # Ensure drowning person doesn't spawn in the same location as the agent, target, or another drowning person
+        while (
+            np.array_equal(position, self._agent_location)
+            or np.array_equal(position, self._target_location)
+            #TODO: check that the water tile, the person spawn on is next to a land-tile
+            #or any(np.array_equal(position, other_person_position) for other_person_position in other_persons_positions)
+        ):
+            position = np.array(self.np_random.integers(0, self.size, size=2, dtype=int))
 
-            # Add the new drowning person
-            self.drowning_people_locations.append(new_drowning_person)
+        # create an id for the person to be added and check that it is unique
+        #id = 1
+        #while (id in other_persons_ids):
+        #    id += 1
+        
+        new_person = Person(person_id=1, position=position, in_water=True)
+
+        # Add the drowning person
+        self.person = new_person
+    
+    #def spawn_drowning_person(self):
+    #    # Check if there's space to spawn more drowning people
+#
+    #    if len(self.persons) < self.max_drowning_persons:
+    #        other_persons_positions = {person.position for person in self.persons}
+    #        other_persons_ids = {person.id for person in self.persons}
+#
+    #        position = array(self.np_random.integers(0, self.size, size=2, dtype=int))
+    #        # Ensure drowning person doesn't spawn in the same location as the agent, target, or another drowning person
+    #        while (
+    #            np.array_equal(position, self._agent_location)
+    #            or np.array_equal(position, self._target_location)
+    #            or self.get_grid_type(position) != self.grid_types["water"]
+    #            #TODO: check that the water tile, the person spawn on is next to a land-tile
+    #            or any(np.array_equal(position, other_person_position) for other_person_position in other_persons_positions)
+    #        ):
+    #            position = self.np_random.integers(0, self.size, size=2, dtype=int)
+#
+    #        # create an id for the person to be added and check that it is unique
+    #        id = 1
+    #        while (id in other_persons_ids):
+    #            id += 1
+    #        
+    #        new_drowning_person = Person(id=id, position=position, in_water=True)
+#
+    #        # Add the new drowning person
+    #        self.persons.append(new_drowning_person)
     
     def step(self, action):
         terminated = False
@@ -169,9 +236,21 @@ class GridWorldEnv_drowningPeople(gym.Env):
             self._agent_location + direction, 0, self.size - 1
         )
 
+
+        if self.get_grid_type(self.person.position) == self.grid_types["water"]:
+            self.person.increase_time_in_water()
+
+        if self.get_grid_type(self.person.position) == self.grid_types["land"]:
+            direction = self._action_to_direction[random.randint(0, 3)]
+            self.person.position = np.clip(
+            self.person.position + direction, 0, self.size - 1
+        )
+        
         # Check if the event happens
-        if random.random() < self.spawn_probability:
-            self.spawn_drowning_people()
+        if self.person.alive == False:
+            self.spawn_person()
+        #if random.random() < self.spawn_probability:
+        #    self.spawn_drowning_person()
 
         #give a negative reward for eacch step taken
         reward = -1  
@@ -258,13 +337,22 @@ class GridWorldEnv_drowningPeople(gym.Env):
         )
 
         # Draw drowning people
-        for drowning_person in self.drowning_people_locations:
-            pygame.draw.circle(
+        #for drowning_person in self.drowning_people_locations:
+        #    pygame.draw.circle(
+        #        canvas,
+        #        (255, 0, 0),
+        #        (drowning_person + 0.5) * pix_square_size,
+        #        pix_square_size / 3,
+        #    )
+
+        #draw person
+        pygame.draw.circle(
                 canvas,
                 (255, 0, 0),
-                (drowning_person + 0.5) * pix_square_size,
+                (self.person.position + 0.5) * pix_square_size,
                 pix_square_size / 3,
             )
+
 
         # Add the gridlines
         for x in range(self.size + 1):
@@ -306,6 +394,9 @@ class GridWorldEnv_drowningPeople(gym.Env):
             pygame.quit()
 
 #registering the environment: note that the module (file) name, in this case bridge_env needs to be written without the filetype .py
+            
+#from gymnasium.utils.env_checker import check_env
+#check_env(GridWorldEnv_drowningPeople)
 
 gym.register(
     id='bridge_world_drowning_people-v0',
@@ -313,3 +404,4 @@ gym.register(
     max_episode_steps=300,
     kwargs={'render_mode': None}
 )
+

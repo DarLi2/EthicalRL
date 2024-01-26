@@ -53,6 +53,7 @@ class QLearningAgent:
 
     #     return tuple_obs
 
+#TODO: put function in extra module such that it can be called by other agents architectures
     def convert_observations(self, observations):
         obs_list = []
 
@@ -61,10 +62,14 @@ class QLearningAgent:
             for element in observations[key]:
                 obs_list.append(element)
 
+        person = observations["person"]
+        for element in person["position"]:
+            obs_list.append(element)
+        obs_list.append(int(person["in_water"]))
         # Convert "drowning_people" to tuples
-        if "drowning_people" in observations:
-            for drowning_person in observations["drowning_people"]:
-                obs_list.extend(drowning_person.tolist())  # Convert the NumPy array to a list
+        #if "drowning_people" in observations:
+        #    for drowning_person in observations["drowning_people"]:
+        #        obs_list.append(drowning_person)  # Convert the NumPy array to a list
 
         tuple_obs = tuple(obs_list)
         return tuple_obs
