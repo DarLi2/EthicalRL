@@ -8,7 +8,7 @@ import gymnasium as gym
 from gymnasium import spaces
 
 class Person():
-    def __init__(self, person_id:int, position: np.array, in_water:bool, drowning_threshold=5):
+    def __init__(self, person_id:int, position: np.array, in_water:bool, drowning_threshold=10):
         self.in_water = in_water
         self.id = person_id
         self.position = position
@@ -27,7 +27,7 @@ class Person():
     def alive(self, value):
         self._alive = value
         
-    def increase_time_in_water(self, timespan=1):
+    def increase__time_in_water(self, timespan=1):
         if self.in_water == True and self._time_in_water <= self._drowning_threshold:
             self._time_in_water += timespan
 
@@ -43,6 +43,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
     def __init__(self, render_mode=None, size=8):
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
+        drowned_person_position = None
 
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
@@ -67,8 +68,10 @@ class GridWorldEnv_drowningPeople(gym.Env):
             "land": 1
         }
 
-        # We have 4 actions, corresponding to "right", "up", "left", "down"
-        self.action_space = spaces.Discrete(4)
+        # We have 4 actions, corresponding to "right", "up", "left", "down" and one action corresponding to saving a person
+        self.action_space = spaces.Discrete(5)
+
+        self.directions = [np.array([1, 0]), np.array([0, 1]), np.array([-1, 0]), np.array([0, -1])]
 
         """
         The following dictionary maps abstract actions from `self.action_space` to
@@ -76,10 +79,10 @@ class GridWorldEnv_drowningPeople(gym.Env):
         I.e. 0 corresponds to "right", 1 to "up" etc.
         """
         self._action_to_direction = {
-            0: np.array([1, 0]),
-            1: np.array([0, 1]),
-            2: np.array([-1, 0]),
-            3: np.array([0, -1]),
+            0: self.directions[0],
+            1: self.directions[1],
+            2: self.directions[2],
+            3: self.directions[3],
         }
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -166,7 +169,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
     def get_adjacent_tiles(self, tile):
         adjacent_tiles = []
         #check if tiles lies in the grid
-        for direction in [np.array([1, 0]), np.array([0, 1]), np.array([-1, 0]), np.array([0, -1])]:
+        for direction in self.directions:
             adjacent_tile = tile+direction
             if self.location_in_grid(adjacent_tile):
                 adjacent_tiles.append(adjacent_tile)
@@ -200,27 +203,45 @@ class GridWorldEnv_drowningPeople(gym.Env):
         self.person = new_person
 
     def step(self, action):
-        terminated = False
-        # Map the action (element of {0,1,2,3}) to the direction we walk in
-        direction = self._action_to_direction[action]
-        # We use `np.clip` to make sure we don't leave the grid
-        self._agent_location = np.clip(
-            self._agent_location + direction, 0, self.size - 1
-        )
-        if np.all(self._agent_location == self.person.position):
-            #TODO: give negative reward for pushing a person (violating a positive moral duty)
+        reward = 0
 
-            #push person to the tile in the opposite direction of the agent, if the tile is empty, otherwise, the agent and the person don't change their position
-            new_position = self.person.position+direction
-            if (self.location_in_grid(new_position)):
-                self.person.position = new_position
-        
+        terminated = False
+        # execute the action if it is taking a step in a direction
+        if action in range(4):
+            # Map the action (element of {0,1,2,3}) to the direction we walk in
+            direction = self._action_to_direction[action]
+            # We use `np.clip` to make sure we don't leave the grid
+            self._agent_location = np.clip(
+                self._agent_location + direction, 0, self.size - 1
+            )
+            if np.all(self._agent_location == self.person.position):
+                #TODO: give negative reward for pushing a person (violating a positive moral duty)
+
+                #push person to the tile in the opposite direction of the agent, if the tile is empty, otherwise, the agent and the person don't change their position
+                new_position = self.person.position+direction
+                if (self.location_in_grid(new_position)):
+                    self.person.position = new_position
+
+        # exceute the action if it is rescuing a person 
+        if action == 4:
+            #print("rescue action")
+            adjacent_tiles = self.get_adjacent_tiles(self._agent_location)
+            #check if there is a person in reach that is in water and thus needs to be rescued
+            if np.any(self.person.position == adjacent_tiles) and self.get_grid_type(self.person.position)== self.grid_types["water"]:
+                #reward for trying to help that person
+                reward += 300
+                #rescue the person by taking it out of the water and on some adjacent land-tile
+                for adjacent_tile in adjacent_tiles:
+                    if self.get_grid_type(adjacent_tile)== self.grid_types["land"]:
+                        self.person.position = adjacent_tile
+                        self.person.rescued()
+
         # update attributes of the person
         if self.person.alive == False:
             self.spawn_person()
         else:
             if self.get_grid_type(self.person.position) == self.grid_types["water"]:
-                self.person.increase_time_in_water()
+                self.person.increase__time_in_water()
 
             if self.get_grid_type(self.person.position) == self.grid_types["land"]:
                 direction = self._action_to_direction[random.randint(0, 3)]
@@ -233,15 +254,15 @@ class GridWorldEnv_drowningPeople(gym.Env):
         #    self.spawn_drowning_person()
 
         #give a negative reward for eacch step taken
-        reward = -1  
+        reward += -1  
 
         # An episode is done iff the agent has reached the target or falls into the water
         if np.array_equal(self._agent_location, self._target_location):
-            reward =100
+            reward +=1
             terminated = True
 
         if self.get_grid_type(self._agent_location)==self.grid_types["water"]:
-            reward = -100
+            reward += -100
             terminated = True
 
         observation = self._get_obs()
