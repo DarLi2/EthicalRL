@@ -46,11 +46,6 @@ class GridWorldEnv_drowningPeople(gym.Env):
     def __init__(self, render_mode=None, size=8):
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
-        drowned_person_position = None
-
-        # Observations are dictionaries with the agent's and the target's location.
-        # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
-        self.spawn_probability = 0.2
 
         #persons wander around and can fall into the water; if they do, they can't get out on their own and will drown if not being helped
         self.person: Person
@@ -62,7 +57,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
                 "person": spaces.Dict({
                      "position": spaces.MultiDiscrete([size, size]), #the position of the person
                      "in_water": spaces.Discrete(2) #indicates if the person is in water 
-                }), #position of the person
+                }), 
             }
         )
 
@@ -257,7 +252,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
                             self.person.position = adjacent_tile
                             person_status = Status.RESCUED
 
-        # if the person is moving, update the position 
+        # if the person moves, update the position 
         elif self.person.status == Status.MOVING:
                 direction = self._action_to_direction[random.randint(0, 3)]
                 new_position = np.clip(
@@ -272,7 +267,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
                     
         self.person.update_status(person_status)
 
-        #give a negative reward for eacch step taken
+        #give a negative reward for each step taken
         reward += -1  
 
         # An episode is done iff the agent has reached the target or falls into the water
