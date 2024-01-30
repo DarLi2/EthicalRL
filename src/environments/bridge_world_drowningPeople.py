@@ -41,7 +41,7 @@ class Person():
 
 
 class GridWorldEnv_drowningPeople(gym.Env):
-    metadata = {"render_modes": ["human"], "render_fps": 4}
+    metadata = {"render_modes": ["human"], "render_fps": 3}
 
     def __init__(self, render_mode=None, size=8):
         self.size = size  # The size of the square grid
@@ -235,8 +235,8 @@ class GridWorldEnv_drowningPeople(gym.Env):
                 self._agent_location + direction, 0, self.size - 1
             )
             if np.all(self._agent_location == self.person.position):
-                #TODO: give negative reward for pushing a person (violating a positive moral duty)
-
+                #give negative reward for pushing a person (violating a positive moral duty)
+                reward += -50
                 #push person to the tile in the opposite direction of the agent, if the tile is empty, otherwise, the agent and the person don't change their position
                 new_position = self.person.position+direction
                 if (self.location_in_grid(new_position)):
@@ -246,15 +246,16 @@ class GridWorldEnv_drowningPeople(gym.Env):
         if action == 4:
             #print("rescue action")
             adjacent_tiles = self.get_adjacent_tiles(self._agent_location)
-            #check if there is a person in reach that is in water and thus needs to be rescued
-            if np.any(self.person.position == adjacent_tiles) and self.get_grid_type(self.person.position)== self.grid_types["water"]:
-                #reward for trying to help that person
-                #reward += 300
-                #rescue the person by taking it out of the water and on some adjacent land-tile
-                for adjacent_tile in adjacent_tiles:
-                    if self.get_grid_type(adjacent_tile)== self.grid_types["land"]:
-                        self.person.position = adjacent_tile
-                        person_status = Status.RESCUED
+            for adjacent_tile in adjacent_tiles:
+                #check if there is a person in reach that is in water and thus needs to be rescued
+                if np.all(self.person.position == adjacent_tile) and self.get_grid_type(self.person.position)== self.grid_types["water"]:
+                    #reward for trying to help that person
+                    #reward += 300
+                    #rescue the person by taking it out of the water and on some adjacent land-tile
+                    for adjacent_tile in adjacent_tiles:
+                        if self.get_grid_type(adjacent_tile)== self.grid_types["land"]:
+                            self.person.position = adjacent_tile
+                            person_status = Status.RESCUED
 
         # if the person is moving, update the position 
         elif self.person.status == Status.MOVING:
@@ -369,7 +370,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
         elif self.person.status == Status.RESCUED:
             color = (0, 255, 0)
         elif self.person.status == Status.MOVING:
-            color = (255, 255, 255)
+            color = (0, 0, 0)
         elif self.person.status == Status.IN_WATER:
             color = (255, 0, 0)
 
