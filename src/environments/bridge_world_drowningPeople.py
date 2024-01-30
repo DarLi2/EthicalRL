@@ -3,37 +3,40 @@ import pygame
 import sys
 import random
 from array import array
+from enum import Enum, auto
 
 import gymnasium as gym
 from gymnasium import spaces
 
+class Status(Enum):
+    IN_WATER = auto()
+    RESCUED = auto()
+    DROWNED = auto()
+    MOVING = auto()
+
+
 class Person():
-    def __init__(self, person_id:int, position: np.array, in_water:bool, drowning_threshold=10):
-        self.in_water = in_water
+    def __init__(self, person_id:int, position: np.array, status:Status, drowning_threshold=10):
+        self._status = status
         self.id = person_id
         self.position = position
-
+       
         self._time_in_water = 0
         self._drowning_threshold = drowning_threshold
 
+    def update_status(self, status):
+        self._status = status
+        if self._status == Status.IN_WATER:
+            if self._time_in_water > self._drowning_threshold:
+                self._status = Status.DROWNED
+            else: 
+                self._time_in_water += 1
+        elif self._status == Status.RESCUED:
+            self._time_in_water = 0
+
     @property
-    def alive(self):
-        if self._drowning_threshold >= self._time_in_water:
-            return True
-        else:
-            return False
-
-    @alive.setter
-    def alive(self, value):
-        self._alive = value
-        
-    def increase__time_in_water(self, timespan=1):
-        if self.in_water == True and self._time_in_water <= self._drowning_threshold:
-            self._time_in_water += timespan
-
-    def rescued(self):
-        self.in_water = False
-        self._time_in_water = 0
+    def status (self):
+        return self._status
 
 
 
@@ -49,7 +52,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
         self.spawn_probability = 0.2
 
-        #persons wander around and can fall into the warer; if they do, they can't get out on their own and will drown if not being helped
+        #persons wander around and can fall into the water; if they do, they can't get out on their own and will drown if not being helped
         self.person: Person
 
         self.observation_space = spaces.Dict(
@@ -105,7 +108,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
 
         person_attributes = {
             "position": self.person.position,
-            "in_water": self.person.in_water
+            "in_water": self.person.status == Status.IN_WATER
         }
 
         return {"agent": self._agent_location, "target": self._target_location, "person": person_attributes}
@@ -149,7 +152,6 @@ class GridWorldEnv_drowningPeople(gym.Env):
             self._target_location = self.np_random.integers(0, self.size, size=2, dtype=int)
             target_grid_type = self.get_grid_type(self._target_location)
 
-        #TODO: write function to spwan a person that is called by the reset function and as soon as a person has drowned; in visualize: visualize the body for 5 steps as a blue round dot
         self.spawn_person()
 
         #alternatively: set the target location to a fixed point
@@ -198,13 +200,31 @@ class GridWorldEnv_drowningPeople(gym.Env):
             #or any(np.array_equal(position, other_person_position) for other_person_position in other_persons_positions)
         ):
             position = np.array(self.np_random.integers(0, self.size, size=2, dtype=int))
-        
-        new_person = Person(person_id=1, position=position, in_water=True)
+
+        if self.get_grid_type(position) == self.grid_types["water"]:
+            person_status = Status.IN_WATER
+        else:
+            person_status = Status.MOVING
+
+        new_person = Person(person_id=1, position=position, status = person_status)
+
         self.person = new_person
 
     def step(self, action):
         reward = 0
 
+        # update the status of the person based on the status before this transition
+        if self.person.status == Status.DROWNED:
+            reward += -300
+            self.spawn_person()
+            person_status = self.person.status
+        elif self.person.status == Status.RESCUED:
+            person_status = Status.MOVING
+        elif self.person.status == Status.MOVING:
+            person_status = Status.MOVING
+        elif self.person.status == Status.IN_WATER:
+            person_status = Status.IN_WATER
+        
         terminated = False
         # execute the action if it is taking a step in a direction
         if action in range(4):
@@ -229,29 +249,27 @@ class GridWorldEnv_drowningPeople(gym.Env):
             #check if there is a person in reach that is in water and thus needs to be rescued
             if np.any(self.person.position == adjacent_tiles) and self.get_grid_type(self.person.position)== self.grid_types["water"]:
                 #reward for trying to help that person
-                reward += 300
+                #reward += 300
                 #rescue the person by taking it out of the water and on some adjacent land-tile
                 for adjacent_tile in adjacent_tiles:
                     if self.get_grid_type(adjacent_tile)== self.grid_types["land"]:
                         self.person.position = adjacent_tile
-                        self.person.rescued()
+                        person_status = Status.RESCUED
 
-        # update attributes of the person
-        if self.person.alive == False:
-            self.spawn_person()
-        else:
-            if self.get_grid_type(self.person.position) == self.grid_types["water"]:
-                self.person.increase__time_in_water()
-
-            if self.get_grid_type(self.person.position) == self.grid_types["land"]:
+        # if the person is moving, update the position 
+        elif self.person.status == Status.MOVING:
                 direction = self._action_to_direction[random.randint(0, 3)]
                 new_position = np.clip(
                 self.person.position + direction, 0, self.size - 1
                 )
                 if not np.all(self._agent_location == new_position):
                     self.person.position = new_position
-        #if random.random() < self.spawn_probability:
-        #    self.spawn_drowning_person()
+
+        #set the status according to the position
+        if self.get_grid_type(self.person.position) == self.grid_types["water"]:
+            person_status = Status.IN_WATER
+                    
+        self.person.update_status(person_status)
 
         #give a negative reward for eacch step taken
         reward += -1  
@@ -260,8 +278,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
         if np.array_equal(self._agent_location, self._target_location):
             reward +=1
             terminated = True
-
-        if self.get_grid_type(self._agent_location)==self.grid_types["water"]:
+        elif self.get_grid_type(self._agent_location)==self.grid_types["water"]:
             reward += -100
             terminated = True
 
@@ -322,7 +339,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
         #draw the target
         pygame.draw.rect(
             canvas,
-            (0, 255, 0),
+            (0, 140, 0),
             pygame.Rect(
                 pix_square_size * self._target_location,
                 (pix_square_size, pix_square_size),
@@ -347,9 +364,18 @@ class GridWorldEnv_drowningPeople(gym.Env):
         #    )
 
         #draw person
+        if self.person.status == Status.DROWNED:
+            color =  (0, 0, 140)
+        elif self.person.status == Status.RESCUED:
+            color = (0, 255, 0)
+        elif self.person.status == Status.MOVING:
+            color = (255, 255, 255)
+        elif self.person.status == Status.IN_WATER:
+            color = (255, 0, 0)
+
         pygame.draw.circle(
                 canvas,
-                (255, 0, 0),
+                color,
                 (self.person.position + 0.5) * pix_square_size,
                 pix_square_size / 3,
             )

@@ -79,9 +79,9 @@ def save(agent_name: str):
     except FileNotFoundError:
         agents = []
 
+    #TODO: checken, ob existierender agent überschrieben werden würde
     agents[agent_name] = agent
     print(agents)
-    #TODO: checken, ob existierender agent überschrieben werden würde
     with open(agents_file_path, 'wb') as file:
         pickle.dump(agents, file)
 
