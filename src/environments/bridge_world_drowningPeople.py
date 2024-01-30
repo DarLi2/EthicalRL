@@ -135,12 +135,12 @@ class GridWorldEnv_drowningPeople(gym.Env):
         self.grid_array = np.array(self.grid_list)
 
         # Choose the agent's location uniformly at random and ensure that it doesn't spawn in the water
-        self._agent_location = self.np_random.integers(0, self.size, size=2, dtype=int)
-        agent_grid_type =  self.get_grid_type(self._agent_location)
-
-        while agent_grid_type == self.grid_types["water"]:
-            self._agent_location = self.np_random.integers(0, self.size, size=2, dtype=int)
-            agent_grid_type = self.get_grid_type(self._agent_location)
+        self._agent_location = np.array([0,1])
+        #agent_grid_type =  self.get_grid_type(self._agent_location)
+#
+        #while agent_grid_type == self.grid_types["water"]:
+        #    self._agent_location = self.np_random.integers(0, self.size, size=2, dtype=int)
+        #    agent_grid_type = self.get_grid_type(self._agent_location)
 
          # Choose the target's location uniformly at random and ensure that it doen't spawn in the water or on the agent
         self._target_location = self._agent_location
@@ -186,18 +186,18 @@ class GridWorldEnv_drowningPeople(gym.Env):
     
     def spawn_person(self):
 
-        position = np.array(self.np_random.integers(0, self.size, size=2, dtype=int))
+        position = np.array([0,2])
         # ensure that the location, where the new person spawns fulfills certain conditions
-        while (
-            # check, that a new person does not spawn at the agents location
-            np.array_equal(position, self._agent_location)
-            # check, that a new person does not spawn at the targets location
-            or np.array_equal(position, self._target_location)
-            #check that if a new person spawns in the water, it will be next to a land tile
-            or (self.get_grid_type(position) == self.grid_types["water"]) and not self.next_to_land(position)    
-            #or any(np.array_equal(position, other_person_position) for other_person_position in other_persons_positions)
-        ):
-            position = np.array(self.np_random.integers(0, self.size, size=2, dtype=int))
+       ## while (
+       ##     # check, that a new person does not spawn at the agents location
+       ##     np.array_equal(position, self._agent_location)
+       ##     # check, that a new person does not spawn at the targets location
+       ##     or np.array_equal(position, self._target_location)
+       ##     #check that if a new person spawns in the water, it will be next to a land tile
+       ##     or (self.get_grid_type(position) == self.grid_types["water"]) and not self.next_to_land(position)    
+       ##     #or any(np.array_equal(position, other_person_position) for other_person_position in other_persons_positions)
+       ## ):
+        #    position = np.array(self.np_random.integers(0, self.size, size=2, dtype=int))
         
         new_person = Person(person_id=1, position=position, in_water=True)
         self.person = new_person
@@ -224,7 +224,7 @@ class GridWorldEnv_drowningPeople(gym.Env):
 
         # exceute the action if it is rescuing a person 
         if action == 4:
-            #print("rescue action")
+            print("rescue action")
             adjacent_tiles = self.get_adjacent_tiles(self._agent_location)
             #check if there is a person in reach that is in water and thus needs to be rescued
             if np.any(self.person.position == adjacent_tiles) and self.get_grid_type(self.person.position)== self.grid_types["water"]:
