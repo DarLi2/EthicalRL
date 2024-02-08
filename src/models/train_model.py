@@ -64,26 +64,40 @@ def train():
             agent.decay_epsilon()
 
 def save(agent_name: str):
-    # Get the current working directory
-    current_directory = os.getcwd()
+    """
+        Saves the agent pickle object to the agents.pkl file in the same directory.ex
+    """
+    # create the path to the directory of the agents.pkl file 
+    path = os.path.abspath(os.path.dirname(__file__))
+    path = os.path.join(path, 'agents.pkl')
 
-    # Specify the relative path to the parent folder
-    relative_folder_path = '..'
+    if not os.path.exists(path):
+        agents = {}
+    else:
 
-    # Create the full path to the pickle file using the relative path and the current working directory
-    agents_file_path = os.path.join(current_directory, relative_folder_path, 'agents.pkl')
-
-    try:
-        with open(agents_file_path, 'rb') as file:
+        # get dictionary with agents from .pkl file 
+        with open(path, 'rb') as file:
             agents = pickle.load(file)
-    except FileNotFoundError:
-        agents = []
+        
+        # create new dictionary if no agents are saved yet
+        if not agents:
+            agents = {}
 
-    #TODO: checken, ob existierender agent überschrieben werden würde
+        #check if an existing agent would be overwritten
+        while agent_name in agents.keys():
+            answer = input("An agent already exists under this name. Do you want to overwrite it (y/n)?")
+            if answer == "n":
+                agent_name = input("Type a different name for the agent to be stored.")
+            else: 
+                break
+    
+    #add agent to the dictionary and store it in the .pkl file
     agents[agent_name] = agent
-    print(agents)
-    with open(agents_file_path, 'wb') as file:
+    with open(path, 'wb') as file:
         pickle.dump(agents, file)
+
+    print("Agents:", agents)
+
 
 train()
 save("q_learning_agent")
