@@ -10,7 +10,7 @@ import os
 from typing import Dict
 import pickle
 
-
+#TODO: unabhängig von wd machen
 current_directory = os.getcwd()
     # Create the full path to the pickle file using the relative path and the current working directory
 file_path = os.path.join(current_directory, "src/models/train_setup/agent_env_selection.json")
