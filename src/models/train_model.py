@@ -1,7 +1,3 @@
-from src.environments import bridge
-from src.environments import bridge_world_drowningPeople
-from src.algorithms import q_learning_agent_table
-
 import gymnasium as gym
 from gymnasium import envs
 from tqdm import tqdm
@@ -9,6 +5,12 @@ import json
 import os
 from typing import Dict
 import pickle
+import torch
+
+print("current directory:", os.getcwd())
+from src.environments import bridge
+from src.environments import bridge_world_drowningPeople
+from src.algorithms import q_learning_agent_table
 
 #TODO: unabhängig von wd machen
 current_directory = os.getcwd()
@@ -76,27 +78,27 @@ def save(agent_name: str):
     else:
 
         # get dictionary with agents from .pkl file 
-        with open(path, 'rb') as file:
-            agents = pickle.load(file)
-        
+        #with open(path, 'rb') as file:
+        #    agents = pickle.load(file)
+        torch.save(agent, 'q_learning_agent.pt', path)
         # create new dictionary if no agents are saved yet
-        if not agents:
-            agents = {}
+        #if not agents:
+        #    agents = {}
 
         #check if an existing agent would be overwritten
-        while agent_name in agents.keys():
-            answer = input("An agent already exists under this name. Do you want to overwrite it (y/n)?")
-            if answer == "n":
-                agent_name = input("Type a different name for the agent to be stored.")
-            else: 
-                break
+        #while agent_name in agents.keys():
+        #    answer = input("An agent already exists under this name. Do you want to overwrite it (y/n)?")
+        #    if answer == "n":
+        #        agent_name = input("Type a different name for the agent to be stored.")
+        #    else: 
+        #        break
     
     #add agent to the dictionary and store it in the .pkl file
-    agents[agent_name] = agent
-    with open(path, 'wb') as file:
-        pickle.dump(agents, file)
+    #agents[agent_name] = agent
+    #with open(path, 'wb') as file:
+    #    pickle.dump(agents, file)
 
-    print("Agents:", agents)
+    #print("Agents:", agents)
 
 
 train()
